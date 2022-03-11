@@ -1,0 +1,140 @@
+1.	安装VMwareworkstation16pr0（x）
+建议安装16pro版本，安装15pro如果主机是win10家庭版那么启动虚拟机可能会导致主机蓝屏；安装方式及注册码百度
+2.	下载资源
+Tomcat：http://archive.apache.org/dist/tomcat/tomcat-8/v8.0.38/bin/
+
+Centos的镜像：
+https://developer.aliyun.com/mirror/centos?spm=a2c6h.13651102.0.0.3e221b11DbPNXa
+
+jdk：https://www.oracle.com/cn/java/technologies/javase/javase8-archive-downloads.html
+
+succezbi：war安装包：https://docs.succbi.com/whatsnew/
+3.	安装centos环境
+ 
+ 
+ 
+            
+4.	更换centosyum源：
+方式一：CentOS配置本地yum源（使用镜像iso文件）
+https://my.oschina.net/activehealth/blog/689936
+方式二：更换为阿里云的yum源：
+https://developer.aliyun.com/mirror/centos?spm=a2c6h.13651102.0.0.248a1b11bingWS
+备份：执行：
+mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup
+
+ 
+下载新的 CentOS-Base.repo 到 /etc/yum.repos.d/
+centos6执行
+wget -O /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-vault-6.10.repo
+
+ 
+5.上传相关资源至服务器：可通过xftp传输或者xshell（lrzsz）传输
+ 
+6.安装mysql8.0
+通过 rpm -qa | grep mariadb 命令查看 mariadb 的安装包
+ 
+卸载系统预置的mariadb，才能安装mysql。
+
+原因是：以前的Linux系统中数据库大部分是mysql，不过自从被sun收购之后，就没用集成在centos这些开源Linux系统中了，那么如果想用的话就需要自己安装了，首先centos7 已经不支持mysql，因为收费了你懂得，所以内部集成了mariadb，而安装mysql的话会和mariadb的文件冲突，所以需要先卸载掉mariadb
+原文链接：https://blog.csdn.net/u012026446/article/details/79397953
+通过 rpm -e mariadb-libs-5.5.60-1.el7_5.x86_64 --nodeps 命令装卸 mariadb
+ 
+通过 rpm -qa | grep mariadb 命令再次查看 mariadb 的安装包
+ 
+通过 cd /usr/local/ 命令进入根目录下的usr目录下的local目录，这个目录是放一些本地的共享资源的
+通过 mkdir mysql 命令 在当前目录下创建一个名为 mysql 的目录 
+将上传的mysql安装包移动到mysql目录下
+ 
+解压mysql.tar
+执行：tar –xvf mysql-8.0.28-1.el6.x86_64.rpm-bundle.tar
+ 
+
+通过：rpm -ivh mysql-community-common-8.0.28-1.el6.x86_64.rpm --nodeps –force
+安装common
+ 
+
+通过：rpm -ivh mysql-community-libs-8.0.28-1.el6.x86_64.rpm --nodeps –force安装libs
+ 
+
+通过：rpm -ivh mysql-community-client-8.0.28-1.el6.x86_64.rpm --nodeps –force安装client
+ 
+
+通过：rpm -ivh mysql-community-server-8.0.28-1.el6.x86_64.rpm --nodeps –force安装server
+ 
+
+通过 rpm -qa | grep mysql 命令查看 mysql 的安装包
+ 
+
+通过以下命令，完成对 mysql 数据库的初始化和相关配置
+这儿特别注意：我们知道在 Linux 环境下默认是区分大小写的，如要改变这种默认方式，需要在初始化前修改 lower_case_table_names，mysql8.0 要求我们不能在initialize之后再更改 lower_case_table_names 的值，也就是说，再通过更改 my.cnf 文件是不管用的。
+初始化前，linux 下修改文件 my.cnf ，在 [mysqld] 配置节点下添加 lower-case-table-names=1，然后再执行如下命令。
+我们可以 通过  chkconfig --list | grep mysqld 命令来查看mysql服务是不是开机自动启动，如：
+[root@xiaoluo ~]# chkconfig --list | grep mysqld
+mysqld             0:关闭    1:关闭    2:关闭    3:关闭    4:关闭    5:关闭    6:关闭
+我们发现mysqld服务并没有开机自动启动，我们当然可以通过 chkconfig mysqld on 命令来将其设置成开机启动，这样就不用每次都去手动启动了
+[root@xiaoluo ~]# chkconfig mysqld on
+[root@xiaoluo ~]# chkconfig --list | grep mysql
+mysqld             0:关闭    1:关闭    2:启用    3:启用    4:启用    5:启用    6:关闭
+
+ 
+mysqld --initialize; 
+chown mysql:mysql /var/lib/mysql -R; 
+service mysqld start 
+通过 cat /var/log/mysqld.log | grep password 命令查看数据库的密码
+ 
+通过 mysql -uroot -p 敲回车键进入数据库登陆界面
+ 
+通过 ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '123456'; 命令来修改密码
+ 
+通过以下命令，进行远程访问的授权
+create user 'root'@'%' identified with mysql_native_password by 'xxxxxx';
+grant all privileges on *.* to 'root'@'%' with grant option;
+flush privileges;
+ 
+关闭防火墙
+ 
+7.安装Tomcat
+
+修改catalina.sh文件 
+
+cd /home/tomcat/bin/
+cp -ap catalina.sh catalina.sh.bak
+           
+vi /home/tomcat/bin/catalina.sh   //添加如下二行，不会使用vi的，可以使用其它工具，只要能添加即可。
+  
+JAVA_HOME=/home/jdk1.8.0_65    //此处的JDK版本要与前面保持一致
+JAVA_OPTS="-Djava.awt.headless=true -Dsuccezbi_workdir=/opt/workdir -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -DLANG=zh_CN.UTF-8 -server -XX:PermSize=128M -XX:MaxPermSize=256m -Xmx4096m -Xms1024m"   
+  
+注意：-Xmx4096m 是配置web服务器最大使用内存，上述参数配置是4G，一般可以设置为4G-8G，根据实际应用服务器配置进行修改。
+
+修改tomcat connector连接方式 （ tomcat 7适用 ) 
+cd /home/tomcat/conf/
+cp server.xml server.xml.20161123
+vi server.xml 
+进行如下修改，（主要是红色部分，其它不用改）
+
+Tomcat7必须修改Connector配置来启动：
+<Connector port="8080" protocol="org.apache.coyote.http11.Http11NioProtocol" 
+         connectionTimeout="20000" redirectPort="8443"/> 
+注意： 主要修改的是protocol="XXXXXX"部分，其它不用更改。
+
+TOMCAT启停操作
+启动tomcat服务
+进入tomcat/bin目录，执行启动的时候出现如下错误：
+[root@test bin]# ./startup.sh
+Cannot find ./catalina.sh
+The file is absent or does not have execute permission
+This file is needed to run this program
+解决方法：
+在tomcat 的bin目录下 执行这条命令
+chmod +x *.sh  
+再次执行 sh catalina.sh通过，
+然后用sh startup.sh启动成功
+
+cd /home/tomcat/bin/
+sh startup.sh
+4.2  停止tomcat服务
+cd /home/tomcat/bin/
+sh shutdown.sh
+
+
